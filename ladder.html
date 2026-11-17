@@ -1,0 +1,206 @@
+
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MAHAN GAME | مار و پله</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#101010;color:white;font-family:Tahoma;text-align:center;padding:12px}
+h1{color:#ffd700}
+button{background:#d6a900;color:#111;border:0;border-radius:12px;padding:12px 17px;font-size:16px;font-weight:bold;margin:5px}
+button:disabled{opacity:.4}
+.info{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin:12px}
+.player{background:#252525;padding:12px;border-radius:12px;border:2px solid #555;min-width:125px}
+.active{border-color:#ffd700}
+#board{display:grid;grid-template-columns:repeat(10,1fr);width:min(95vw,520px);margin:15px auto;border:3px solid #d6a900;border-radius:8px;overflow:hidden}
+.cell{aspect-ratio:1;background:#292929;border:1px solid #555;display:flex;flex-direction:column;justify-content:space-between;padding:2px;font-size:clamp(8px,2.3vw,13px)}
+.cell:nth-child(even){background:#353535}
+.number{text-align:right;color:#bbb}
+.symbol{font-size:clamp(13px,3.5vw,23px)}
+.tokens{display:flex;justify-content:center;gap:2px}
+.token{font-size:clamp(13px,3vw,20px)}
+#dice{font-size:48px;color:#ffd700;margin:10px}
+#message{min-height:42px;color:#ffd700;line-height:1.8}
+footer{color:#888;margin:25px}
+</style>
+</head>
+<body>
+
+<h1>🎮 MAHAN GAME</h1>
+<h2>🐍 مار و پله 🪜</h2>
+
+<p>نوع بازی رو انتخاب کن:</p>
+<button onclick="startGame('computer')">🤖 بازی با کامپیوتر</button>
+<button onclick="startGame('two')">👥 بازی دونفره</button>
+
+<div class="info">
+ <div class="player" id="p1">
+ 🔴 بازیکن اول
+ <div>خانه: <span id="pos1">0</span></div>
+ </div>
+ <div class="player" id="p2">
+ 🔵 <span id="name2">بازیکن دوم</span>
+ <div>خانه: <span id="pos2">0</span></div>
+ </div>
+</div>
+
+<div id="dice">🎲</div>
+<div id="board"></div>
+<div id="message">یک نوع بازی انتخاب کن!</div>
+<button id="roll" onclick="rollDice()" disabled>🎲 انداختن تاس</button>
+<button onclick="restart()">شروع دوباره</button>
+
+<footer>MAHAN GAME | PLAY & ENJOY</footer>
+
+<script>
+const board=document.getElementById("board");
+
+const snakes={
+ 16:6,47:26,49:11,56:53,
+ 62:19,64:60,87:24,93:73,95:75,98:78
+};
+
+const ladders={
+ 2:38,7:14,8:31,15:26,
+ 21:42,28:84,36:44,51:67,
+ 71:91,78:98,87:94
+};
+
+let positions=[0,0];
+let current=0;
+let gameOver=false;
+let mode=null;
+let busy=false;
+let aiTimer=null;
+
+function cellNumber(index){
+ const row=Math.floor(index/10);
+ const col=index%10;
+ return row%2===0?row*10+col+1:row*10+(9-col)+1;
+}
+
+function createBoard(){
+ board.innerHTML="";
+ for(let i=99;i>=0;i--){
+  const n=cellNumber(i);
+  const cell=document.createElement("div");
+  cell.className="cell";
+  cell.innerHTML=
+   `<span class="number">${n}</span>
+    <span class="symbol">${snakes[n]?"🐍":ladders[n]?"🪜":""}</span>
+    <div class="tokens" id="tokens${n}"></div>`;
+  board.appendChild(cell);
+ }
+}
+
+function drawPlayers(){
+ for(let i=1;i<=100;i++){
+  document.getElementById("tokens"+i).innerHTML="";
+ }
+ positions.forEach((pos,i)=>{
+  if(pos>0){
+   const token=document.createElement("span");
+   token.className="token";
+   token.textContent=i===0?"🔴":"🔵";
+   document.getElementById("tokens"+pos).appendChild(token);
+  }
+ });
+ document.getElementById("pos1").textContent=positions[0];
+ document.getElementById("pos2").textContent=positions[1];
+}
+
+function startGame(selectedMode){
+ clearTimeout(aiTimer);
+ mode=selectedMode;
+ positions=[0,0];
+ current=0;
+ gameOver=false;
+ busy=false;
+ document.getElementById("roll").disabled=false;
+ document.getElementById("name2").textContent=
+  mode==="computer"?"کامپیوتر":"بازیکن دوم";
+ document.getElementById("dice").textContent="🎲";
+ document.getElementById("message").textContent=
+  mode==="computer"?"نوبت توئه! تاس بنداز.":"نوبت بازیکن اول!";
+ document.getElementById("p1").classList.add("active");
+ document.getElementById("p2").classList.remove("active");
+ drawPlayers();
+}
+
+function restart(){
+ if(mode===null){
+  startGame("computer");
+ }else{
+  startGame(mode);
+ }
+}
+
+function rollDice(){
+ if(gameOver||busy||mode===null)return;
+ playTurn();
+}
+
+function playTurn(){
+ busy=true;
+ document.getElementById("roll").disabled=true;
+
+ const dice=Math.floor(Math.random()*6)+1;
+ const faces=["","⚀","⚁","⚂","⚃","⚄","⚅"];
+ document.getElementById("dice").textContent=faces[dice]+" ("+dice+")";
+
+ let next=positions[current]+dice;
+ let message=current===0?"تو":"بازیکن دوم";
+
+ if(current===1&&mode==="computer")message="کامپیوتر";
+
+ if(next>100){
+  message+=" عدد "+dice+" آورد، اما برای رسیدن به ۱۰۰ باید عدد دقیق بیاد.";
+ }else{
+  positions[current]=next;
+  message+=" به خانه "+next+" رسید.";
+
+  if(ladders[next]){
+   positions[current]=ladders[next];
+   message+=" 🪜 نردبان! رفت به خانه "+positions[current];
+  }else if(snakes[next]){
+   positions[current]=snakes[next];
+   message+=" 🐍 مار! برگشت به خانه "+positions[current];
+  }
+
+  drawPlayers();
+
+  if(positions[current]===100){
+   gameOver=true;
+   document.getElementById("message").textContent=
+    "🏆 "+(current===0?"تو برنده شدی!":"کامپیوتر برنده شد!");
+   busy=false;
+   return;
+  }
+ }
+
+ document.getElementById("message").textContent=message;
+ current=1-current;
+
+ document.getElementById("p1").classList.toggle("active",current===0);
+ document.getElementById("p2").classList.toggle("active",current===1);
+
+ if(mode==="computer"&&current===1){
+  document.getElementById("message").textContent+=" نوبت کامپیوتر است...";
+  aiTimer=setTimeout(()=>{
+   if(!gameOver){
+    playTurn();
+   }
+  },1000);
+ }else{
+  busy=false;
+  document.getElementById("roll").disabled=false;
+  document.getElementById("message").textContent+=" نوبت "+(current===0?"تو":"بازیکن دوم")+" است!";
+ }
+}
+
+createBoard();
+</script>
+</body>
+</html>

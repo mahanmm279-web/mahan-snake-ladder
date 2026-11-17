@@ -1,0 +1,139 @@
+
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MAHAN GAME | مار و سیب</title>
+<style>
+*{box-sizing:border-box}
+body{
+ margin:0;background:#101010;color:#ffd700;
+ font-family:Tahoma,Arial;text-align:center;padding:20px
+}
+h1{margin:12px}
+p{color:#eee}
+canvas{
+ background:#191919;border:3px solid #d6a900;
+ border-radius:12px;max-width:90vw;width:360px;height:360px;
+ touch-action:none
+}
+button{
+ background:#d6a900;color:#111;border:0;border-radius:10px;
+ padding:12px 20px;font-size:17px;font-weight:bold;margin:6px
+}
+.controls{
+ display:grid;grid-template-columns:repeat(3,65px);
+ justify-content:center;gap:7px;margin-top:15px
+}
+.controls button{padding:13px 0}
+#msg{color:white;min-height:28px}
+</style>
+</head>
+<body>
+<h1>🐍 MAHAN GAME</h1>
+<p>امتیاز: <span id="score">0</span></p>
+<canvas id="game" width="360" height="360"></canvas>
+<p id="msg">برای شروع دکمه شروع را بزن!</p>
+<button onclick="startGame()">شروع دوباره</button>
+
+<div class="controls">
+ <span></span><button onclick="change(0,-1)">⬆️</button><span></span>
+ <button onclick="change(-1,0)">⬅️</button>
+ <button onclick="change(0,1)">⬇️</button>
+ <button onclick="change(1,0)">➡️</button>
+</div>
+
+<script>
+const canvas=document.getElementById("game");
+const ctx=canvas.getContext("2d");
+const count=18,cell=20;
+
+let snake,food,dx,dy,score,running,timer;
+let directionLocked=false;
+
+function newFood(){
+ do{
+  food={
+   x:Math.floor(Math.random()*count),
+   y:Math.floor(Math.random()*count)
+  };
+ }while(snake.some(p=>p.x===food.x&&p.y===food.y));
+}
+
+function startGame(){
+ clearInterval(timer);
+ snake=[{x:8,y:9},{x:7,y:9},{x:6,y:9}];
+ dx=1;dy=0;score=0;running=true;
+ directionLocked=false;
+ document.getElementById("score").textContent=0;
+ document.getElementById("msg").textContent="بازی شروع شد!";
+ newFood();
+ draw();
+ timer=setInterval(move,140);
+}
+
+function change(x,y){
+ if(!running||directionLocked)return;
+ if(x===-dx&&y===-dy)return;
+ dx=x;dy=y;
+ directionLocked=true;
+}
+
+function move(){
+ if(!running)return;
+
+ const head={
+  x:(snake[0].x+dx+count)%count,
+  y:(snake[0].y+dy+count)%count
+ };
+
+ const eating=head.x===food.x&&head.y===food.y;
+ const body=eating?snake:snake.slice(0,-1);
+
+ if(body.some(p=>p.x===head.x&&p.y===head.y)){
+  running=false;
+  clearInterval(timer);
+  document.getElementById("msg").textContent=
+   "بازی تمام شد! امتیازت: "+score;
+  return;
+ }
+
+ snake.unshift(head);
+
+ if(eating){
+  score+=10;
+  document.getElementById("score").textContent=score;
+  newFood();
+ }else{
+  snake.pop();
+ }
+
+ directionLocked=false;
+ draw();
+}
+
+function draw(){
+ ctx.fillStyle="#191919";
+ ctx.fillRect(0,0,360,360);
+
+ ctx.fillStyle="#ff3333";
+ ctx.fillRect(food.x*cell,food.y*cell,cell-2,cell-2);
+
+ snake.forEach((p,i)=>{
+  ctx.fillStyle=i===0?"#ffd700":"#22bb66";
+  ctx.fillRect(p.x*cell,p.y*cell,cell-2,cell-2);
+ });
+}
+
+document.addEventListener("keydown",e=>{
+ if(e.key==="ArrowUp")change(0,-1);
+ if(e.key==="ArrowDown")change(0,1);
+ if(e.key==="ArrowLeft")change(-1,0);
+ if(e.key==="ArrowRight")change(1,0);
+});
+
+startGame();
+</script>
+</body>
+</html>
